@@ -1,10 +1,8 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import threading
 
@@ -82,20 +80,6 @@ def load_data():
                 json.dump(default_data, f, indent=4)
         with open(DATA_FILE, 'r') as f:
             data = json.load(f)
-
-        # Ensure 'goals' section exists
-        if 'goals' not in data:
-            data['goals'] = {
-                "Biga": {"Views": 10000, "Engagements": 500, "Likes": 1000},
-                "Tricolor": {"Views": 8000, "Engagements": 400, "Likes": 800}
-            }
-            with open(DATA_FILE, 'w') as f:
-                json.dump(data, f, indent=4)
-
-        # Ensure each client has goals
-        for client in ["Biga", "Tricolor"]:
-            if client not in data['goals']:
-                data['goals'][client] = {"Views": 10000, "Engagements": 500, "Likes": 1000} if client == "Biga" else {"Views": 8000, "Engagements": 400, "Likes": 800}
         return data
 
 # Function to save data to the JSON file
@@ -125,6 +109,18 @@ options = [
 ]
 selection = st.sidebar.radio("Go to", options)
 
+# ================== Helper Functions ================== #
+
+def delete_item(section, client, idx):
+    del st.session_state['data'][section][client][idx]
+    save_data(st.session_state['data'])
+    st.success("Item deleted!")
+
+def edit_item(section, client, idx, new_value):
+    st.session_state['data'][section][client][idx]['idea'] = new_value
+    save_data(st.session_state['data'])
+    st.success("Item edited!")
+
 # ================== Section Functions ================== #
 
 def strategic_objectives():
@@ -138,13 +134,21 @@ def strategic_objectives():
             st.success("Objective added!")
         else:
             st.warning("Please enter an objective.")
+    
+    search_term = st.text_input("Search Objectives", key="search_objectives")
     st.subheader(f"{client} Objectives")
-    for idx, obj in enumerate(st.session_state['data']['strategic_objectives'][client], 1):
-        st.write(f"{idx}. {obj}")
+    filtered_objectives = [obj for obj in st.session_state['data']['strategic_objectives'][client] if search_term.lower() in obj.lower()]
+    for idx, obj in enumerate(filtered_objectives, 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {obj}")
+        if col2.button(f"Delete {idx}", key=f"delete_strat_{idx}"):
+            delete_item('strategic_objectives', client, idx-1)
 
 def content_ideas():
     st.header("📝 Content Ideas")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="content_client")
+    
+    search_term = st.text_input("Search Content Ideas", key="search_content")
     idea = st.text_input(f"Add Content Idea for {client}", key="content_input")
     category = st.selectbox("Select Category", ["Trendy Posts", "Carousels", "Reels", "Polls"], key="content_category")
     if st.button("Add Content Idea", key="content_add_btn"):
@@ -154,13 +158,20 @@ def content_ideas():
             st.success("Content idea added!")
         else:
             st.warning("Please enter a content idea.")
+    
     st.subheader(f"{client} Content Ideas")
-    for idx, item in enumerate(st.session_state['data']['content_ideas'][client], 1):
-        st.write(f"{idx}. **{item['category']}**: {item['idea']}")
+    filtered_ideas = [item for item in st.session_state['data']['content_ideas'][client] if search_term.lower() in item['idea'].lower()]
+    for idx, item in enumerate(filtered_ideas, 1):
+        col1, col2 = st.columns([4, 1])
+        new_idea = col1.text_input(f"Edit Idea {idx}", value=item['idea'], key=f"edit_idea_{idx}")
+        if col2.button(f"Save Edit {idx}", key=f"save_edit_{idx}"):
+            edit_item('content_ideas', client, idx-1, new_idea)
 
 def weekly_goals():
     st.header("🎯 Weekly Goals (SMART)")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="goal_client")
+    
+    search_term = st.text_input("Search Weekly Goals", key="search_goals")
     with st.form(key='goal_form'):
         goal = st.text_input("Enter SMART Goal", key="goal_input")
         submitted = st.form_submit_button("Add Goal")
@@ -171,13 +182,20 @@ def weekly_goals():
                 st.success("Goal added!")
             else:
                 st.warning("Please enter a goal.")
+    
     st.subheader(f"{client} Weekly Goals")
-    for idx, g in enumerate(st.session_state['data']['weekly_goals'][client], 1):
-        st.write(f"{idx}. {g}")
+    filtered_goals = [g for g in st.session_state['data']['weekly_goals'][client] if search_term.lower() in g.lower()]
+    for idx, g in enumerate(filtered_goals, 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {g}")
+        if col2.button(f"Delete {idx}", key=f"delete_goal_{idx}"):
+            delete_item('weekly_goals', client, idx-1)
 
 def captions():
     st.header("✍️ Captions")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="caption_client")
+    
+    search_term = st.text_input("Search Captions", key="search_captions")
     caption = st.text_input(f"Add Caption for {client}", key="caption_input")
     if st.button("Add Caption", key="caption_add_btn"):
         if caption:
@@ -186,13 +204,20 @@ def captions():
             st.success("Caption added!")
         else:
             st.warning("Please enter a caption.")
+    
     st.subheader(f"{client} Captions")
-    for idx, cap in enumerate(st.session_state['data']['captions'][client], 1):
-        st.write(f"{idx}. {cap}")
+    filtered_captions = [cap for cap in st.session_state['data']['captions'][client] if search_term.lower() in cap.lower()]
+    for idx, cap in enumerate(filtered_captions, 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {cap}")
+        if col2.button(f"Delete {idx}", key=f"delete_caption_{idx}"):
+            delete_item('captions', client, idx-1)
 
 def notes():
     st.header("🗒️ Notes for Planning")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="notes_client")
+    
+    search_term = st.text_input("Search Notes", key="search_notes")
     note = st.text_area(f"Add Note for {client}", key="notes_input")
     if st.button("Add Note", key="notes_add_btn"):
         if note:
@@ -201,9 +226,14 @@ def notes():
             st.success("Note added!")
         else:
             st.warning("Please enter a note.")
+    
     st.subheader(f"{client} Notes")
-    for idx, note in enumerate(st.session_state['data']['notes'][client], 1):
-        st.write(f"{idx}. {note}")
+    filtered_notes = [note for note in st.session_state['data']['notes'][client] if search_term.lower() in note.lower()]
+    for idx, note in enumerate(filtered_notes, 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {note}")
+        if col2.button(f"Delete {idx}", key=f"delete_note_{idx}"):
+            delete_item('notes', client, idx-1)
 
 def analytics():
     st.header("📊 Analytics Tracking")
