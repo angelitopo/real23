@@ -36,6 +36,15 @@
             {
                 "idea": "Zombie mask video",
                 "category": "Reels"
+            },
+            {
+                "idea": "Spilling of beans video",
+                "category": "Reels"
+            },
+            {
+                "idea": "Crêpes, coffee, and a Palette of cozy vibes",
+                "category": "Reels",
+                "description": "Video portraying the food of the business, including 12\" sourdough pizzas, with a focus on the cozy vibes. Featured pizzas: Margarita, Nduja, Pepperoni, Spicy Spanish Chorizo, Quattro Formaggi, Truffle Mushroom. Additional featured items: Arancini, Lasagna, drinks, and calzones."
             }
         ],
         "Tricolor": [
@@ -66,6 +75,11 @@
             {
                 "idea": "Trick or Treat",
                 "category": "Reels"
+            },
+            {
+                "idea": "Batanga-style restaurant video",
+                "category": "Reels",
+                "description": "Quickly shows the whole restaurant and then zooms into the plates, showcasing them individually. Reference: Batanga reels."
             }
         ]
     },
@@ -82,8 +96,12 @@
         "Tricolor": []
     },
     "notes": {
-        "Biga": [],
-        "Tricolor": []
+        "Biga": [
+            "Palette reference: Qatar."
+        ],
+        "Tricolor": [
+            "Reels reference: https://www.instagram.com/p/CMlAzplp7zI/"
+        ]
     },
     "analytics": {
         "Biga": {
