@@ -82,15 +82,34 @@ def load_data():
             data = json.load(f)
         return data
 
-# Function to save data to the JSON file
+# Function to save data to the JSON file and update session state
 def save_data(data):
     with lock:
         with open(DATA_FILE, 'w') as f:
             json.dump(data, f, indent=4)
+    # Update session state to reflect changes
+    st.session_state['data'] = data
 
 # Initialize session state
 if 'data' not in st.session_state:
     st.session_state['data'] = load_data()
+
+# ================== Helper Functions ================== #
+
+def delete_item(section, client, idx):
+    del st.session_state['data'][section][client][idx]
+    save_data(st.session_state['data'])
+    st.success("Item deleted!")
+
+def delete_all_items(section, client):
+    st.session_state['data'][section][client].clear()
+    save_data(st.session_state['data'])
+    st.success("All items deleted!")
+
+def edit_item(section, client, idx, new_value):
+    st.session_state['data'][section][client][idx]['idea'] = new_value
+    save_data(st.session_state['data'])
+    st.success("Item edited!")
 
 # ================== App Layout ================== #
 
@@ -108,18 +127,6 @@ options = [
     "Pricing & Billing"
 ]
 selection = st.sidebar.radio("Go to", options)
-
-# ================== Helper Functions ================== #
-
-def delete_item(section, client, idx):
-    del st.session_state['data'][section][client][idx]
-    save_data(st.session_state['data'])
-    st.success("Item deleted!")
-
-def edit_item(section, client, idx, new_value):
-    st.session_state['data'][section][client][idx]['idea'] = new_value
-    save_data(st.session_state['data'])
-    st.success("Item edited!")
 
 # ================== Section Functions ================== #
 
@@ -144,6 +151,9 @@ def strategic_objectives():
         if col2.button(f"Delete {idx}", key=f"delete_strat_{idx}"):
             delete_item('strategic_objectives', client, idx-1)
 
+    if st.button(f"Delete All Objectives for {client}", key="delete_all_strat"):
+        delete_all_items('strategic_objectives', client)
+
 def content_ideas():
     st.header("📝 Content Ideas")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="content_client")
@@ -166,6 +176,9 @@ def content_ideas():
         new_idea = col1.text_input(f"Edit Idea {idx}", value=item['idea'], key=f"edit_idea_{idx}")
         if col2.button(f"Save Edit {idx}", key=f"save_edit_{idx}"):
             edit_item('content_ideas', client, idx-1, new_idea)
+
+    if st.button(f"Delete All Content Ideas for {client}", key="delete_all_content"):
+        delete_all_items('content_ideas', client)
 
 def weekly_goals():
     st.header("🎯 Weekly Goals (SMART)")
@@ -191,6 +204,9 @@ def weekly_goals():
         if col2.button(f"Delete {idx}", key=f"delete_goal_{idx}"):
             delete_item('weekly_goals', client, idx-1)
 
+    if st.button(f"Delete All Weekly Goals for {client}", key="delete_all_goals"):
+        delete_all_items('weekly_goals', client)
+
 def captions():
     st.header("✍️ Captions")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="caption_client")
@@ -212,6 +228,9 @@ def captions():
         col1.write(f"{idx}. {cap}")
         if col2.button(f"Delete {idx}", key=f"delete_caption_{idx}"):
             delete_item('captions', client, idx-1)
+
+    if st.button(f"Delete All Captions for {client}", key="delete_all_captions"):
+        delete_all_items('captions', client)
 
 def notes():
     st.header("🗒️ Notes for Planning")
@@ -235,106 +254,8 @@ def notes():
         if col2.button(f"Delete {idx}", key=f"delete_note_{idx}"):
             delete_item('notes', client, idx-1)
 
-def analytics():
-    st.header("📊 Analytics Tracking")
-    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="analytics_client")
-    st.subheader(f"{client} Current Analytics")
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Views", st.session_state['data']['analytics'][client]['views'])
-        views = st.number_input("Add Views", min_value=0, step=1, key="views_input")
-        if st.button("Update Views", key="views_btn"):
-            st.session_state['data']['analytics'][client]['views'] += views
-            save_data(st.session_state['data'])
-            st.success("Views updated!")
-    with col2:
-        st.metric("Engagements", st.session_state['data']['analytics'][client]['engagement'])
-        engagement = st.number_input("Add Engagements", min_value=0, step=1, key="engagement_input")
-        if st.button("Update Engagements", key="engagement_btn"):
-            st.session_state['data']['analytics'][client]['engagement'] += engagement
-            save_data(st.session_state['data'])
-            st.success("Engagements updated!")
-    with col3:
-        st.metric("Likes", st.session_state['data']['analytics'][client]['likes'])
-        likes = st.number_input("Add Likes", min_value=0, step=1, key="likes_input")
-        if st.button("Update Likes", key="likes_btn"):
-            st.session_state['data']['analytics'][client]['likes'] += likes
-            save_data(st.session_state['data'])
-            st.success("Likes updated!")
-
-    # Visualizing Progress towards Goals
-    st.subheader("Progress Towards Goals")
-
-    # Define the goals
-    goals = st.session_state['data']['goals'][client]
-
-    # Current metrics
-    current_metrics = {
-        "Views": st.session_state['data']['analytics'][client]['views'],
-        "Engagements": st.session_state['data']['analytics'][client]['engagement'],
-        "Likes": st.session_state['data']['analytics'][client]['likes']
-    }
-
-    # Data for plotting
-    metrics = list(current_metrics.keys())
-    values = list(current_metrics.values())
-    goal_values = [goals[metric] for metric in metrics]
-
-    x = range(len(metrics))  # [0, 1, 2]
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bar_width = 0.35
-
-    # Bars for current metrics
-    bars1 = ax.bar([i - bar_width/2 for i in x], values, bar_width, label='Current', color='skyblue')
-
-    # Bars for goal metrics
-    bars2 = ax.bar([i + bar_width/2 for i in x], goal_values, bar_width, label='Goal', color='lightgreen')
-
-    # Add labels, title, and custom x-axis tick labels
-    ax.set_xlabel('Metrics')
-    ax.set_ylabel('Count')
-    ax.set_title(f'Current Metrics vs Goals for {client}')
-    ax.set_xticks(x)
-    ax.set_xticklabels(metrics)
-    ax.legend()
-
-    # Adding value labels on top of bars
-    def add_labels(bars):
-        for bar in bars:
-            height = bar.get_height()
-            ax.annotate('{}'.format(height),
-                        xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3),  # 3 points vertical offset
-                        textcoords="offset points",
-                        ha='center', va='bottom')
-
-    add_labels(bars1)
-    add_labels(bars2)
-
-    plt.tight_layout()
-    st.pyplot(fig)
-
-def pricing_billing():
-    st.header("💰 Pricing & Billing")
-    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="pricing_client")
-    amount = st.number_input(f"Set Monthly Fee for {client} ($)", min_value=0, step=50, key="pricing_input")
-    if st.button("Set Pricing", key="pricing_btn"):
-        st.session_state['data']['pricing'][client]['amount'] = amount
-        # Set due date as the 30th of the next month
-        today = datetime.today()
-        if today.month == 12:
-            next_month = today.replace(year=today.year + 1, month=1, day=30)
-        else:
-            next_month = today.replace(month=today.month + 1, day=30)
-        due_date = next_month.strftime("%d/%m/%Y")
-        st.session_state['data']['pricing'][client]['due_date'] = due_date
-        save_data(st.session_state['data'])
-        st.success(f"Pricing set! Billing Date: {due_date}")
-    st.subheader(f"{client} Pricing")
-    st.write(f"**Monthly Fee:** ${st.session_state['data']['pricing'][client]['amount']}")
-    st.write(f"**Next Billing Date:** {st.session_state['data']['pricing'][client]['due_date']}")
+    if st.button(f"Delete All Notes for {client}", key="delete_all_notes"):
+        delete_all_items('notes', client)
 
 # ================== Section Navigation ================== #
 
@@ -349,10 +270,6 @@ elif selection == "Captions":
     captions()
 elif selection == "Notes":
     notes()
-elif selection == "Analytics":
-    analytics()
-elif selection == "Pricing & Billing":
-    pricing_billing()
 
 # ================== Footer ================== #
 
