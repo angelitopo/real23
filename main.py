@@ -14,6 +14,15 @@ DATA_FILE = 'data.json'
 # Lock for thread-safe file operations
 lock = threading.Lock()
 
+# Function to log save actions
+def log_save_action(action_details):
+    """Log the action of saving data with details and timestamp."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_message = f"[{timestamp}] {action_details}\n"
+    
+    with open(LOG_FILE, 'a') as log_file:
+        log_file.write(log_message)
+
 # Function to load data from the JSON file
 def load_data():
     with lock:
