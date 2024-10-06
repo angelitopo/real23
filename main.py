@@ -8,8 +8,9 @@ import threading
 
 # ================== Data Handling ================== #
 
-# Path to the data file
+# Path to the data file and log file at the root level
 DATA_FILE = 'data.json'
+LOG_FILE = 'save_log.txt'
 
 # Lock for thread-safe file operations
 lock = threading.Lock()
@@ -92,12 +93,23 @@ def load_data():
         return data
 
 # Function to save data to the JSON file and update session state
-def save_data(data):
+def save_data(data, action_details="Data updated"):
     with lock:
         with open(DATA_FILE, 'w') as f:
             json.dump(data, f, indent=4)
     # Update session state to reflect changes
     st.session_state['data'] = data
+    # Log the save action
+    log_save_action(action_details)
+
+# Function to display the save log
+def display_save_log():
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, 'r') as log_file:
+            log_data = log_file.read()
+            st.text_area("Save Log", log_data, height=200)
+    else:
+        st.write("No save log available yet.")
 
 # Initialize session state
 if 'data' not in st.session_state:
@@ -107,17 +119,17 @@ if 'data' not in st.session_state:
 
 def delete_item(section, client, idx):
     del st.session_state['data'][section][client][idx]
-    save_data(st.session_state['data'])
+    save_data(st.session_state['data'], f"Deleted item from {section} for {client}")
     st.success("Item deleted!")
 
 def delete_all_items(section, client):
     st.session_state['data'][section][client].clear()
-    save_data(st.session_state['data'])
+    save_data(st.session_state['data'], f"Deleted all items from {section} for {client}")
     st.success("All items deleted!")
 
 def edit_item(section, client, idx, new_value):
     st.session_state['data'][section][client][idx]['idea'] = new_value
-    save_data(st.session_state['data'])
+    save_data(st.session_state['data'], f"Edited item in {section} for {client}")
     st.success("Item edited!")
 
 # ================== App Layout ================== #
@@ -133,7 +145,8 @@ options = [
     "Captions",
     "Notes",
     "Analytics",
-    "Pricing & Billing"
+    "Pricing & Billing",
+    "Save Log"
 ]
 selection = st.sidebar.radio("Go to", options)
 
@@ -146,7 +159,7 @@ def strategic_objectives():
     if st.button("Add Objective", key="strat_add_btn"):
         if objective:
             st.session_state['data']['strategic_objectives'][client].append(objective)
-            save_data(st.session_state['data'])
+            save_data(st.session_state['data'], f"Added objective for {client}")
             st.success("Objective added!")
         else:
             st.warning("Please enter an objective.")
@@ -173,7 +186,7 @@ def content_ideas():
     if st.button("Add Content Idea", key="content_add_btn"):
         if idea:
             st.session_state['data']['content_ideas'][client].append({'idea': idea, 'category': category})
-            save_data(st.session_state['data'])
+            save_data(st.session_state['data'], f"Added content idea for {client}")
             st.success("Content idea added!")
         else:
             st.warning("Please enter a content idea.")
@@ -189,83 +202,6 @@ def content_ideas():
     if st.button(f"Delete All Content Ideas for {client}", key="delete_all_content"):
         delete_all_items('content_ideas', client)
 
-def weekly_goals():
-    st.header("🎯 Weekly Goals (SMART)")
-    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="goal_client")
-    
-    search_term = st.text_input("Search Weekly Goals", key="search_goals")
-    with st.form(key='goal_form'):
-        goal = st.text_input("Enter SMART Goal", key="goal_input")
-        submitted = st.form_submit_button("Add Goal")
-        if submitted:
-            if goal:
-                st.session_state['data']['weekly_goals'][client].append(goal)
-                save_data(st.session_state['data'])
-                st.success("Goal added!")
-            else:
-                st.warning("Please enter a goal.")
-    
-    st.subheader(f"{client} Weekly Goals")
-    filtered_goals = [g for g in st.session_state['data']['weekly_goals'][client] if search_term.lower() in g.lower()]
-    for idx, g in enumerate(filtered_goals, 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {g}")
-        if col2.button(f"Delete {idx}", key=f"delete_goal_{idx}"):
-            delete_item('weekly_goals', client, idx-1)
-
-    if st.button(f"Delete All Weekly Goals for {client}", key="delete_all_goals"):
-        delete_all_items('weekly_goals', client)
-
-def captions():
-    st.header("✍️ Captions")
-    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="caption_client")
-    
-    search_term = st.text_input("Search Captions", key="search_captions")
-    caption = st.text_input(f"Add Caption for {client}", key="caption_input")
-    if st.button("Add Caption", key="caption_add_btn"):
-        if caption:
-            st.session_state['data']['captions'][client].append(caption)
-            save_data(st.session_state['data'])
-            st.success("Caption added!")
-        else:
-            st.warning("Please enter a caption.")
-    
-    st.subheader(f"{client} Captions")
-    filtered_captions = [cap for cap in st.session_state['data']['captions'][client] if search_term.lower() in cap.lower()]
-    for idx, cap in enumerate(filtered_captions, 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {cap}")
-        if col2.button(f"Delete {idx}", key=f"delete_caption_{idx}"):
-            delete_item('captions', client, idx-1)
-
-    if st.button(f"Delete All Captions for {client}", key="delete_all_captions"):
-        delete_all_items('captions', client)
-
-def notes():
-    st.header("🗒️ Notes for Planning")
-    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="notes_client")
-    
-    search_term = st.text_input("Search Notes", key="search_notes")
-    note = st.text_area(f"Add Note for {client}", key="notes_input")
-    if st.button("Add Note", key="notes_add_btn"):
-        if note:
-            st.session_state['data']['notes'][client].append(note)
-            save_data(st.session_state['data'])
-            st.success("Note added!")
-        else:
-            st.warning("Please enter a note.")
-    
-    st.subheader(f"{client} Notes")
-    filtered_notes = [note for note in st.session_state['data']['notes'][client] if search_term.lower() in note.lower()]
-    for idx, note in enumerate(filtered_notes, 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {note}")
-        if col2.button(f"Delete {idx}", key=f"delete_note_{idx}"):
-            delete_item('notes', client, idx-1)
-
-    if st.button(f"Delete All Notes for {client}", key="delete_all_notes"):
-        delete_all_items('notes', client)
-
 # ================== Section Navigation ================== #
 
 # Navigation between different sections
@@ -273,12 +209,9 @@ if selection == "Strategic Objectives":
     strategic_objectives()
 elif selection == "Content Ideas":
     content_ideas()
-elif selection == "Weekly Goals":
-    weekly_goals()
-elif selection == "Captions":
-    captions()
-elif selection == "Notes":
-    notes()
+elif selection == "Save Log":
+    st.header("📝 Save Log")
+    display_save_log()
 
 # ================== Footer ================== #
 
