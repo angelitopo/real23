@@ -1,26 +1,24 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import json
-from datetime import datetime
 import os
+import openai
 import threading
+from datetime import datetime
+
+# ================== OpenAI API Configuration ================== #
+openai.api_key = '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'
 
 # ================== Data Handling ================== #
 
-# Path to the data file and log file at the root level
 DATA_FILE = 'data.json'
 LOG_FILE = 'save_log.txt'
-
-# Lock for thread-safe file operations
 lock = threading.Lock()
 
 # Function to log save actions
 def log_save_action(action_details):
-    """Log the action of saving data with details and timestamp."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_message = f"[{timestamp}] {action_details}\n"
-    
     with open(LOG_FILE, 'a') as log_file:
         log_file.write(log_message)
 
@@ -28,7 +26,6 @@ def log_save_action(action_details):
 def load_data():
     with lock:
         if not os.path.exists(DATA_FILE):
-            # Initialize with default structure if file doesn't exist
             default_data = {
                 "strategic_objectives": {
                     "Biga": [
@@ -92,49 +89,37 @@ def load_data():
             data = json.load(f)
         return data
 
-# Function to save data to the JSON file and update session state
+# Function to save data to the JSON file
 def save_data(data, action_details="Data updated"):
     with lock:
         with open(DATA_FILE, 'w') as f:
             json.dump(data, f, indent=4)
-    # Update session state to reflect changes
     st.session_state['data'] = data
-    # Log the save action
     log_save_action(action_details)
 
-# Function to display the save log
-def display_save_log():
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, 'r') as log_file:
-            log_data = log_file.read()
-            st.text_area("Save Log", log_data, height=200)
-    else:
-        st.write("No save log available yet.")
+# ================== OpenAI Query Function ================== #
+
+def query_openai(prompt, data):
+    """Query OpenAI GPT to answer questions based on the provided data."""
+    # Convert data to a readable string format for GPT to process
+    data_str = json.dumps(data)
+    
+    # Use GPT to process the query and return a relevant answer
+    response = openai.Completion.create(
+        model="gpt-3.5-turbo",  # Use gpt-4 if available or needed
+        prompt=f"Use the following data: {data_str}. Answer the following query: {prompt}",
+        max_tokens=150,
+        temperature=0.5
+    )
+    return response.choices[0].text.strip()
+
+# ================== App Layout ================== #
+
+st.title("📈 SMMA Planning and Tracking App with OpenAI GPT")
 
 # Initialize session state
 if 'data' not in st.session_state:
     st.session_state['data'] = load_data()
-
-# ================== Helper Functions ================== #
-
-def delete_item(section, client, idx):
-    del st.session_state['data'][section][client][idx]
-    save_data(st.session_state['data'], f"Deleted item from {section} for {client}")
-    st.success("Item deleted!")
-
-def delete_all_items(section, client):
-    st.session_state['data'][section][client].clear()
-    save_data(st.session_state['data'], f"Deleted all items from {section} for {client}")
-    st.success("All items deleted!")
-
-def edit_item(section, client, idx, new_value):
-    st.session_state['data'][section][client][idx]['idea'] = new_value
-    save_data(st.session_state['data'], f"Edited item in {section} for {client}")
-    st.success("Item edited!")
-
-# ================== App Layout ================== #
-
-st.title("📈 SMMA Planning and Tracking App")
 
 # Sidebar for Navigation
 st.sidebar.title("Navigation")
@@ -146,6 +131,7 @@ options = [
     "Notes",
     "Analytics",
     "Pricing & Billing",
+    "GPT Query",
     "Save Log"
 ]
 selection = st.sidebar.radio("Go to", options)
@@ -202,7 +188,21 @@ def content_ideas():
     if st.button(f"Delete All Content Ideas for {client}", key="delete_all_content"):
         delete_all_items('content_ideas', client)
 
-# ================== Section Navigation ================== #
+# ================== GPT Query Section ================== #
+
+if selection == "GPT Query":
+    st.header("🦙 Ask GPT about your data")
+    query = st.text_input("Enter your query:")
+    
+    if st.button("Submit Query"):
+        if query:
+            # Query OpenAI with the input and data from data.json
+            response = query_openai(query, st.session_state['data'])
+            st.write(response)
+        else:
+            st.warning("Please enter a query.")
+
+# ================== Other Sections ================== #
 
 # Navigation between different sections
 if selection == "Strategic Objectives":
