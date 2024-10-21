@@ -5,11 +5,13 @@ import os
 import threading
 
 # Load the OpenAI API key from environment variable
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
-# Error message if the key is missing
-if openai.api_key is None:
-    st.error("OpenAI API key is missing. Please set it as an environment variable on Streamlit Cloud.")
+# Check if the API key is available
+if openai_api_key is None:
+    st.error("OpenAI API key is missing. Please set it as an environment variable.")
+else:
+    openai.api_key = openai_api_key
 
 # ================== Data Handling ================== #
 
@@ -128,18 +130,21 @@ def query_openai_about_data(query, data):
     # Define the prompt including the data
     prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
 
-    # Use `ChatCompletion.create()` instead of `Completion.create()`
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",  # You can use "gpt-4" if available
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=150,
-        temperature=0.5
-    )
+    # Use `ChatCompletion.create()` to query the AI
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # You can use "gpt-4" if available
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.5
+        )
+        return response['choices'][0]['message']['content'].strip()
 
-    return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        return f"Error querying OpenAI: {str(e)}"
 
 # ================== App Layout ================== #
 
