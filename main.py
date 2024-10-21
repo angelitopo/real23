@@ -1,8 +1,6 @@
 import streamlit as st
 import openai
-import pandas as pd
 import json
-from datetime import datetime
 import os
 import threading
 
@@ -15,7 +13,6 @@ if openai.api_key is None:
 
 # ================== Data Handling ================== #
 
-# Path to the data file and log file at the root level
 DATA_FILE = 'data.json'
 LOG_FILE = 'save_log.txt'
 
@@ -27,7 +24,6 @@ def log_save_action(action_details):
     """Log the action of saving data with details and timestamp."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_message = f"[{timestamp}] {action_details}\n"
-
     with open(LOG_FILE, 'a') as log_file:
         log_file.write(log_message)
 
@@ -132,15 +128,18 @@ def query_openai_about_data(query, data):
     # Define the prompt including the data
     prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
 
-    # Call OpenAI to process the prompt
-    response = openai.Completion.create(
-        model="gpt-3.5-turbo",  # Replace with "gpt-4" if available
-        prompt=prompt,
+    # Use `ChatCompletion.create()` instead of `Completion.create()`
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",  # You can use "gpt-4" if available
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ],
         max_tokens=150,
         temperature=0.5
     )
 
-    return response.choices[0].text.strip()
+    return response['choices'][0]['message']['content'].strip()
 
 # ================== App Layout ================== #
 
