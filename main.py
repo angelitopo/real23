@@ -5,7 +5,7 @@ import os
 import threading
 
 # Load the OpenAI API key from environment variable
-openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 
 # Check if the API key is available
 if openai_api_key is None:
