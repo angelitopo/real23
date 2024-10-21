@@ -3,15 +3,14 @@ import openai
 import json
 import os
 import threading
+from datetime import datetime
+from openai import OpenAI
 
-# Load the OpenAI API key from environment variable
+# Load the OpenAI API key from Streamlit secrets or environment variable
 openai_api_key = st.secrets["OPENAI_API_KEY"]
 
-# Check if the API key is available
-if openai_api_key is None:
-    st.error("OpenAI API key is missing. Please set it as an environment variable.")
-else:
-    openai.api_key = openai_api_key
+# Initialize the OpenAI client
+client = OpenAI(api_key=openai_api_key)
 
 # ================== Data Handling ================== #
 
@@ -130,18 +129,18 @@ def query_openai_about_data(query, data):
     # Define the prompt including the data
     prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
 
-    # Use `ChatCompletion.create()` to query the AI
+    # Use the updated client to query the AI
     try:
-        response = openai.chatcompletions.create(
-            model="gpt-3.5-turbo",  # You can use "gpt-4" if available
+        chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ],
-            max_tokens=150,
-            temperature=0.5
+            model="gpt-3.5-turbo",
         )
-        return response['choices'][0]['message']['content'].strip()
+        return chat_completion['choices'][0]['message']['content'].strip()
 
     except Exception as e:
         return f"Error querying OpenAI: {str(e)}"
