@@ -132,7 +132,7 @@ def query_openai_about_data(query, data):
 
     # Use `ChatCompletion.create()` to query the AI
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.completions.create(
             model="gpt-3.5-turbo",  # You can use "gpt-4" if available
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
