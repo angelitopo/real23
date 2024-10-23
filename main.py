@@ -77,89 +77,45 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== AI CRUD and General Assistant Operations ================== #
+# ================== AI General Assistant Operations ================== #
 
 def ai_assistant(query, data):
-    """Process CRUD operations, content generation, or data queries based on the query."""
+    """Process content generation or data queries based on the query."""
     query_lower = query.lower()
 
-    # Vocabulary for CRUD and general queries
-    create_synonyms = ["add", "create", "insert", "generate", "introduce", "write", "produce", "draft"]
-    read_synonyms = ["list", "show", "display", "retrieve", "fetch", "view", "find", "get", "bring up"]
-    update_synonyms = ["update", "modify", "change", "adjust", "revise", "refresh"]
-    delete_synonyms = ["delete", "remove", "discard", "eliminate", "erase", "clear"]
+    # Expanded vocabulary for content generation and data queries
+    generate_synonyms = ["generate", "produce", "create", "make"]
     query_synonyms = ["what", "how many", "how much", "count", "give me", "tell me", "list out", "find"]
 
-    # Handle Create Operations
-    if any(word in query_lower for word in create_synonyms):
+    # Handle Content Generation
+    if any(word in query_lower for word in generate_synonyms):
         if "content idea" in query_lower:
-            client = "Biga" if "biga" in query_lower else "Tricolor"
-            idea = query.split("for ")[-1]
-            data['content_ideas'][client].append({"idea": idea, "category": "AI-generated"})
-            save_data(data, f"Added new content idea for {client}: {idea}")
-            return f"Successfully added a new content idea for {client}: {idea}"
+            generated_idea = ai_generate_content(query, "content idea")
+            return f"Generated content idea: {generated_idea}"
+        elif "caption" in query_lower:
+            generated_caption = ai_generate_content(query, "caption")
+            return f"Generated caption: {generated_caption}"
 
-    # Handle Read Operations
-    elif any(word in query_lower for word in read_synonyms):
-        if "content ideas" in query_lower:
-            client = "Biga" if "biga" in query_lower else "Tricolor"
-            content_ideas = data['content_ideas'][client]
-            return f"Here are the content ideas for {client}: {content_ideas}"
-        if "objectives" in query_lower:
-            client = "Biga" if "biga" in query_lower else "Tricolor"
-            objectives = data['strategic_objectives'][client]
-            return f"Here are the strategic objectives for {client}: {objectives}"
-
-    # Handle Update Operations
-    elif any(word in query_lower for word in update_synonyms):
+    # Handle General Data Queries
+    elif any(word in query_lower for word in query_synonyms):
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
-            new_views = int(query.split("to ")[-1])
-            data['analytics'][client]['views'] = new_views
-            save_data(data, f"Updated views for {client} to {new_views}")
-            return f"Successfully updated views for {client} to {new_views}"
-
-    # Handle Delete Operations
-    elif any(word in query_lower for word in delete_synonyms):
-        if "content idea" in query_lower:
+            return f"{client} has {data['analytics'][client]['views']} views."
+        elif "content ideas" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
-            if data['content_ideas'][client]:
-                deleted_idea = data['content_ideas'][client].pop(0)
-                save_data(data, f"Deleted content idea for {client}: {deleted_idea['idea']}")
-                return f"Successfully deleted the first content idea for {client}: {deleted_idea['idea']}"
-            else:
-                return f"No content ideas to delete for {client}."
+            content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
+            return f"Content ideas for {client}: {', '.join(content_ideas)}"
+        elif "pricing" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            pricing_data = data['pricing'][client]
+            return f"Pricing for {client}: Amount - {pricing_data['amount']}, Due Date - {pricing_data['due_date']}"
 
-    # Handle Content Generation and Data Queries
-    else:
-        if "generate" in query_lower or "produce" in query_lower or "create" in query_lower:
-            if "content idea" in query_lower:
-                generated_idea = ai_generate_content(query, "content idea")
-                return f"Generated content idea: {generated_idea}"
-            elif "caption" in query_lower:
-                generated_caption = ai_generate_content(query, "caption")
-                return f"Generated caption: {generated_caption}"
-
-        # Handle General Data Queries
-        elif any(word in query_lower for word in query_synonyms):
-            if "views" in query_lower:
-                client = "Biga" if "biga" in query_lower else "Tricolor"
-                return f"{client} has {data['analytics'][client]['views']} views."
-            elif "content ideas" in query_lower:
-                client = "Biga" if "biga" in query_lower else "Tricolor"
-                content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
-                return f"Content ideas for {client}: {', '.join(content_ideas)}"
-            elif "pricing" in query_lower:
-                client = "Biga" if "biga" in query_lower else "Tricolor"
-                pricing_data = data['pricing'][client]
-                return f"Pricing for {client}: Amount - {pricing_data['amount']}, Due Date - {pricing_data['due_date']}"
-
-    return "I couldn't understand your request. Please specify whether you'd like to add, read, update, delete, generate, or ask about the data."
+    return "I couldn't understand your request. Please specify if you'd like to generate content or ask about the data."
 
 # ================== OpenAI Query Function ================== #
 
 def query_openai_about_data(query, data):
-    """Ask OpenAI a question about the loaded data and perform CRUD or generate content."""
+    """Ask OpenAI a question about the loaded data and perform content generation or data queries."""
     try:
         response = ai_assistant(query, data)
         return response
