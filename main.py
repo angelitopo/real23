@@ -291,9 +291,18 @@ def pricing_billing():
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="pricing_client")
     pricing_data = st.session_state['data']['pricing'][client]
 
-    amount = st.number_input("Amount Due", value=pricing_data['amount'], step=1.0)
+    # Ensure that the amount is a numeric type
+    amount = pricing_data['amount']
+    if not isinstance(amount, (int, float)):
+        amount = 0.0  # Default to 0.0 if the amount is not a number
+
+    # Use st.number_input to allow input for the amount due
+    amount = st.number_input("Amount Due", value=float(amount), step=1.0)
+
+    # Input for due date
     due_date = st.text_input("Due Date", value=pricing_data['due_date'])
 
+    # Update data when the button is clicked
     if st.button("Update Pricing"):
         st.session_state['data']['pricing'][client] = {"amount": amount, "due_date": due_date}
         save_data(st.session_state['data'], f"Updated pricing for {client}")
