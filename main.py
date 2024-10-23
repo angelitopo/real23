@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st 
 import openai
 import json
 import os
@@ -87,7 +87,7 @@ def ai_generate_content(query, section):
     prompt = f"You are an expert in social media marketing. Generate a new {section} based on the following query: {query}"
     try:
         response = openai.Completion.create(
-            engine="gpt-3.5-turbo",
+            model="gpt-3.5-turbo",
             prompt=prompt,
             max_tokens=150,
             temperature=0.7
