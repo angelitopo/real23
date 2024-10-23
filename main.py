@@ -77,7 +77,7 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== General AI Assistant Operations ================== #
+# ================== AI General Assistant Operations ================== #
 
 def ai_general_assistant(query):
     """Allow ChatGPT to handle a variety of general tasks, including code assistance or providing insights."""
