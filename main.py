@@ -129,8 +129,8 @@ def query_openai_about_data(query, data):
     # Define the prompt including the data
     prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
 
-    # Use the updated client to query the AI
     try:
+        # Use the updated client to query the AI
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -140,10 +140,16 @@ def query_openai_about_data(query, data):
             ],
             model="gpt-3.5-turbo",
         )
-        return chat_completion['choices'][0]['message']['content'].strip()
+        
+        # Extract the response content
+        message_content = chat_completion.choices[0].message["content"].strip()
+        return message_content
 
-    except Exception as e:
+    except openai.error.RateLimitError:
+        return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
+    except openai.error.OpenAIError as e:
         return f"Error querying OpenAI: {str(e)}"
+
 
 # ================== App Layout ================== #
 
