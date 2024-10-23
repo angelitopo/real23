@@ -57,7 +57,7 @@ def save_data(data, action_details="Data updated"):
 if 'data' not in st.session_state:
     st.session_state['data'] = load_data()
 
-# ================== AI Content Generation (using chat/completions) ================== #
+# ================== AI Content Generation ================== #
 
 def ai_generate_content(query, section):
     """Use OpenAI to generate content for specific sections using chat completions."""
@@ -77,10 +77,10 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== AI General Assistant Operations ================== #
+# ================== AI General Assistant for Various Tasks ================== #
 
 def ai_general_assistant(query):
-    """Allow ChatGPT to handle a variety of general tasks, including code assistance or providing insights."""
+    """Allow ChatGPT to handle a variety of tasks, including code assistance, content generation, and data queries."""
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -96,27 +96,27 @@ def ai_general_assistant(query):
     except openai.error.OpenAIError as e:
         return f"Error processing the request: {str(e)}"
 
-# ================== AI General Assistant for Data Queries ================== #
+# ================== Enhanced AI Assistant for Mixed Queries ================== #
 
 def ai_assistant(query, data):
-    """Process content generation or data queries based on the query."""
+    """Process any type of query: content generation, data queries, or general assistant help."""
     query_lower = query.lower()
 
-    # Expanded vocabulary for content generation and data queries
-    generate_synonyms = ["generate", "produce", "create", "make"]
-    query_synonyms = ["what", "how many", "how much", "count", "give me", "tell me", "list out", "find"]
+    # Check for content generation keywords
+    generate_keywords = ["generate", "produce", "create", "make", "come up with"]
 
-    # Handle Content Generation
-    if any(word in query_lower for word in generate_synonyms):
+    # Check for data-related queries
+    data_keywords = ["what", "how many", "how much", "count", "give me", "list", "find", "show"]
+
+    # Check if the query is about content generation
+    if any(keyword in query_lower for keyword in generate_keywords):
         if "content idea" in query_lower:
-            generated_idea = ai_generate_content(query, "content idea")
-            return f"Generated content idea: {generated_idea}"
+            return ai_generate_content(query, "content idea")
         elif "caption" in query_lower:
-            generated_caption = ai_generate_content(query, "caption")
-            return f"Generated caption: {generated_caption}"
+            return ai_generate_content(query, "caption")
 
-    # Handle General Data Queries
-    elif any(word in query_lower for word in query_synonyms):
+    # Handle data queries
+    elif any(keyword in query_lower for keyword in data_keywords):
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             return f"{client} has {data['analytics'][client]['views']} views."
@@ -129,17 +129,16 @@ def ai_assistant(query, data):
             pricing_data = data['pricing'][client]
             return f"Pricing for {client}: Amount - {pricing_data['amount']}, Due Date - {pricing_data['due_date']}"
 
-    return "I couldn't understand your request. Please specify if you'd like to generate content or ask about the data."
+    # If it's a general request (e.g., code help or explanations)
+    else:
+        return ai_general_assistant(query)
 
 # ================== OpenAI Query Function ================== #
 
 def query_openai_about_data(query, data):
     """Ask OpenAI a question about the loaded data and perform content generation or data queries."""
     try:
-        if "code" in query.lower() or "explain" in query.lower() or "how to" in query.lower():
-            return ai_general_assistant(query)
-        else:
-            return ai_assistant(query, data)
+        return ai_assistant(query, data)
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
     except openai.error.OpenAIError as e:
