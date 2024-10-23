@@ -77,14 +77,14 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== AI CRUD and Query Operations ================== #
+# ================== AI CRUD and General Assistant Operations ================== #
 
-def ai_crud_or_generate(query, data):
+def ai_assistant(query, data):
     """Process CRUD operations, content generation, or data queries based on the query."""
     query_lower = query.lower()
 
-    # Expanded vocabulary for CRUD operations and queries
-    create_synonyms = ["add", "create", "insert", "generate", "introduce", "write", "produce", "synthesize", "draft"]
+    # Vocabulary for CRUD and general queries
+    create_synonyms = ["add", "create", "insert", "generate", "introduce", "write", "produce", "draft"]
     read_synonyms = ["list", "show", "display", "retrieve", "fetch", "view", "find", "get", "bring up"]
     update_synonyms = ["update", "modify", "change", "adjust", "revise", "refresh"]
     delete_synonyms = ["delete", "remove", "discard", "eliminate", "erase", "clear"]
@@ -140,7 +140,7 @@ def ai_crud_or_generate(query, data):
                 generated_caption = ai_generate_content(query, "caption")
                 return f"Generated caption: {generated_caption}"
 
-        # Handle Data Queries
+        # Handle General Data Queries
         elif any(word in query_lower for word in query_synonyms):
             if "views" in query_lower:
                 client = "Biga" if "biga" in query_lower else "Tricolor"
@@ -149,6 +149,10 @@ def ai_crud_or_generate(query, data):
                 client = "Biga" if "biga" in query_lower else "Tricolor"
                 content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
                 return f"Content ideas for {client}: {', '.join(content_ideas)}"
+            elif "pricing" in query_lower:
+                client = "Biga" if "biga" in query_lower else "Tricolor"
+                pricing_data = data['pricing'][client]
+                return f"Pricing for {client}: Amount - {pricing_data['amount']}, Due Date - {pricing_data['due_date']}"
 
     return "I couldn't understand your request. Please specify whether you'd like to add, read, update, delete, generate, or ask about the data."
 
@@ -157,7 +161,7 @@ def ai_crud_or_generate(query, data):
 def query_openai_about_data(query, data):
     """Ask OpenAI a question about the loaded data and perform CRUD or generate content."""
     try:
-        response = ai_crud_or_generate(query, data)
+        response = ai_assistant(query, data)
         return response
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
