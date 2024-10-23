@@ -1,14 +1,12 @@
 import streamlit as st
 import openai
 import json
+import os
 import threading
 from datetime import datetime
 
-# Access the OpenAI API key securely from Streamlit secrets
-openai_api_key = st.secrets["OPENAI_API_KEY"]
-
-# Set the OpenAI API key
-openai.api_key = openai_api_key
+# Access the OpenAI API key from Streamlit secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # ================== Data Handling ================== #
 
@@ -33,35 +31,12 @@ def load_data():
             # Initialize with default structure if file doesn't exist
             default_data = {
                 "strategic_objectives": {
-                    "Biga": [
-                        "Create 3 trend videos",
-                        "Post two pictures and story posts",
-                        "Conduct twice polls (e.g., favorite drink, duel between plates)"
-                    ],
-                    "Tricolor": [
-                        "Create 3 trend videos focusing on food",
-                        "Post two pictures and story posts",
-                        "Conduct twice polls (e.g., favorite arepa)"
-                    ]
+                    "Biga": [],
+                    "Tricolor": []
                 },
                 "content_ideas": {
-                    "Biga": [
-                        {"idea": "On and off coffee video", "category": "Reels"},
-                        {"idea": "Do you work here", "category": "Trendy Posts"},
-                        {"idea": "Enjoy you too video", "category": "Reels"},
-                        {"idea": "ASMR video", "category": "Carousels"},
-                        {"idea": "Ghost pour over", "category": "Reels"},
-                        {"idea": "Zombie mask video", "category": "Reels"}
-                    ],
-                    "Tricolor": [
-                        {"idea": "Colombian beverage try for people in the street", "category": "Reels"},
-                        {"idea": "Empanada try three types", "category": "Carousels"},
-                        {"idea": "Which type are you poll", "category": "Polls"},
-                        {"idea": "Mystery empanada", "category": "Trendy Posts"},
-                        {"idea": "Arepa reaction", "category": "Reels"},
-                        {"idea": "Word of the week: Colombian slang", "category": "Trendy Posts"},
-                        {"idea": "Trick or Treat", "category": "Reels"}
-                    ]
+                    "Biga": [],
+                    "Tricolor": []
                 },
                 "weekly_goals": {
                     "Biga": [],
@@ -82,10 +57,6 @@ def load_data():
                 "pricing": {
                     "Biga": {"amount": 0, "due_date": ""},
                     "Tricolor": {"amount": 0, "due_date": ""}
-                },
-                "goals": {
-                    "Biga": {"Views": 10000, "Engagements": 500, "Likes": 1000},
-                    "Tricolor": {"Views": 8000, "Engagements": 400, "Likes": 800}
                 }
             }
             with open(DATA_FILE, 'w') as f:
@@ -148,6 +119,7 @@ def query_openai_about_data(query, data):
     except openai.error.OpenAIError as e:
         return f"Error querying OpenAI: {str(e)}"
 
+
 # ================== App Layout ================== #
 
 st.title("📈 SMMA Planning and Tracking App")
@@ -169,6 +141,7 @@ selection = st.sidebar.radio("Go to", options)
 
 # ================== Section Functions ================== #
 
+# Function for Strategic Objectives Section
 def strategic_objectives():
     st.header("🎯 Strategic Objectives")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="strat_client")
@@ -188,11 +161,15 @@ def strategic_objectives():
         col1, col2 = st.columns([4, 1])
         col1.write(f"{idx}. {obj}")
         if col2.button(f"Delete {idx}", key=f"delete_strat_{idx}"):
-            delete_item('strategic_objectives', client, idx-1)
+            st.session_state['data']['strategic_objectives'][client].pop(idx-1)
+            save_data(st.session_state['data'], f"Deleted objective for {client}")
 
     if st.button(f"Delete All Objectives for {client}", key="delete_all_strat"):
-        delete_all_items('strategic_objectives', client)
+        st.session_state['data']['strategic_objectives'][client] = []
+        save_data(st.session_state['data'], f"Deleted all objectives for {client}")
+        st.success("All objectives deleted!")
 
+# Function for Content Ideas Section
 def content_ideas():
     st.header("📝 Content Ideas")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="content_client")
@@ -214,10 +191,113 @@ def content_ideas():
         col1, col2 = st.columns([4, 1])
         new_idea = col1.text_input(f"Edit Idea {idx}", value=item['idea'], key=f"edit_idea_{idx}")
         if col2.button(f"Save Edit {idx}", key=f"save_edit_{idx}"):
-            edit_item('content_ideas', client, idx-1, new_idea)
+            st.session_state['data']['content_ideas'][client][idx-1]['idea'] = new_idea
+            save_data(st.session_state['data'], f"Edited content idea for {client}")
+            st.success(f"Idea {idx} updated!")
 
     if st.button(f"Delete All Content Ideas for {client}", key="delete_all_content"):
-        delete_all_items('content_ideas', client)
+        st.session_state['data']['content_ideas'][client] = []
+        save_data(st.session_state['data'], f"Deleted all content ideas for {client}")
+        st.success("All content ideas deleted!")
+
+# Function for Weekly Goals Section
+def weekly_goals():
+    st.header("📅 Weekly Goals")
+    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="goals_client")
+    
+    goal = st.text_input(f"Add Weekly Goal for {client}", key="goals_input")
+    if st.button("Add Weekly Goal", key="goals_add_btn"):
+        if goal:
+            st.session_state['data']['weekly_goals'][client].append(goal)
+            save_data(st.session_state['data'], f"Added weekly goal for {client}")
+            st.success("Weekly goal added!")
+        else:
+            st.warning("Please enter a weekly goal.")
+
+    st.subheader(f"{client} Weekly Goals")
+    for idx, goal in enumerate(st.session_state['data']['weekly_goals'][client], 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {goal}")
+        if col2.button(f"Delete {idx}", key=f"delete_goal_{idx}"):
+            st.session_state['data']['weekly_goals'][client].pop(idx-1)
+            save_data(st.session_state['data'], f"Deleted weekly goal for {client}")
+
+# Function for Captions Section
+def captions():
+    st.header("📝 Captions")
+    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="captions_client")
+    
+    caption = st.text_input(f"Add Caption for {client}", key="caption_input")
+    if st.button("Add Caption", key="caption_add_btn"):
+        if caption:
+            st.session_state['data']['captions'][client].append(caption)
+            save_data(st.session_state['data'], f"Added caption for {client}")
+            st.success("Caption added!")
+        else:
+            st.warning("Please enter a caption.")
+
+    st.subheader(f"{client} Captions")
+    for idx, caption in enumerate(st.session_state['data']['captions'][client], 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {caption}")
+        if col2.button(f"Delete {idx}", key=f"delete_caption_{idx}"):
+            st.session_state['data']['captions'][client].pop(idx-1)
+            save_data(st.session_state['data'], f"Deleted caption for {client}")
+
+# Function for Notes Section
+def notes():
+    st.header("📝 Notes")
+    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="notes_client")
+    
+    note = st.text_area(f"Add Note for {client}", key="note_input")
+    if st.button("Add Note", key="note_add_btn"):
+        if note:
+            st.session_state['data']['notes'][client].append(note)
+            save_data(st.session_state['data'], f"Added note for {client}")
+            st.success("Note added!")
+        else:
+            st.warning("Please enter a note.")
+
+    st.subheader(f"{client} Notes")
+    for idx, note in enumerate(st.session_state['data']['notes'][client], 1):
+        col1, col2 = st.columns([4, 1])
+        col1.write(f"{idx}. {note}")
+        if col2.button(f"Delete {idx}", key=f"delete_note_{idx}"):
+            st.session_state['data']['notes'][client].pop(idx-1)
+            save_data(st.session_state['data'], f"Deleted note for {client}")
+
+# Function for Analytics Section
+def analytics():
+    st.header("📊 Analytics")
+    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="analytics_client")
+    analytics_data = st.session_state['data']['analytics'][client]
+
+    st.write(f"Views: {analytics_data['views']}")
+    st.write(f"Engagement: {analytics_data['engagement']}")
+    st.write(f"Likes: {analytics_data['likes']}")
+
+    views = st.number_input("Update Views", value=analytics_data['views'], step=1)
+    engagement = st.number_input("Update Engagement", value=analytics_data['engagement'], step=1)
+    likes = st.number_input("Update Likes", value=analytics_data['likes'], step=1)
+
+    if st.button("Update Analytics"):
+        st.session_state['data']['analytics'][client] = {"views": views, "engagement": engagement, "likes": likes}
+        save_data(st.session_state['data'], f"Updated analytics for {client}")
+        st.success("Analytics updated!")
+
+# Function for Pricing & Billing Section
+def pricing_billing():
+    st.header("💰 Pricing & Billing")
+    client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="pricing_client")
+    pricing_data = st.session_state['data']['pricing'][client]
+
+    amount = st.number_input("Amount Due", value=pricing_data['amount'], step=1.0)
+    due_date = st.text_input("Due Date", value=pricing_data['due_date'])
+
+    if st.button("Update Pricing"):
+        st.session_state['data']['pricing'][client] = {"amount": amount, "due_date": due_date}
+        save_data(st.session_state['data'], f"Updated pricing for {client}")
+        st.success("Pricing & Billing updated!")
 
 # ================== AI Query Section ================== #
 
@@ -240,6 +320,16 @@ if selection == "Strategic Objectives":
     strategic_objectives()
 elif selection == "Content Ideas":
     content_ideas()
+elif selection == "Weekly Goals":
+    weekly_goals()
+elif selection == "Captions":
+    captions()
+elif selection == "Notes":
+    notes()
+elif selection == "Analytics":
+    analytics()
+elif selection == "Pricing & Billing":
+    pricing_billing()
 elif selection == "Save Log":
     st.header("📝 Save Log")
     display_save_log()
