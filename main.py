@@ -1,4 +1,4 @@
-import streamlit as st 
+import streamlit as st
 import openai
 import json
 import os
@@ -29,36 +29,15 @@ def log_save_action(action_details):
 def load_data():
     with lock:
         if not os.path.exists(DATA_FILE):
-            # Initialize with default structure if file doesn't exist
             default_data = {
-                "strategic_objectives": {
-                    "Biga": [],
-                    "Tricolor": []
-                },
-                "content_ideas": {
-                    "Biga": [],
-                    "Tricolor": []
-                },
-                "weekly_goals": {
-                    "Biga": [],
-                    "Tricolor": []
-                },
-                "captions": {
-                    "Biga": [],
-                    "Tricolor": []
-                },
-                "notes": {
-                    "Biga": [],
-                    "Tricolor": []
-                },
-                "analytics": {
-                    "Biga": {"views": 0, "engagement": 0, "likes": 0},
-                    "Tricolor": {"views": 0, "engagement": 0, "likes": 0}
-                },
-                "pricing": {
-                    "Biga": {"amount": 0, "due_date": ""},
-                    "Tricolor": {"amount": 0, "due_date": ""}
-                }
+                "strategic_objectives": {"Biga": [], "Tricolor": []},
+                "content_ideas": {"Biga": [], "Tricolor": []},
+                "weekly_goals": {"Biga": [], "Tricolor": []},
+                "captions": {"Biga": [], "Tricolor": []},
+                "notes": {"Biga": [], "Tricolor": []},
+                "analytics": {"Biga": {"views": 0, "engagement": 0, "likes": 0},
+                              "Tricolor": {"views": 0, "engagement": 0, "likes": 0}},
+                "pricing": {"Biga": {"amount": 0, "due_date": ""}, "Tricolor": {"amount": 0, "due_date": ""}}
             }
             with open(DATA_FILE, 'w') as f:
                 json.dump(default_data, f, indent=4)
@@ -71,9 +50,7 @@ def save_data(data, action_details="Data updated"):
     with lock:
         with open(DATA_FILE, 'w') as f:
             json.dump(data, f, indent=4)
-    # Update session state to reflect changes
     st.session_state['data'] = data
-    # Log the save action
     log_save_action(action_details)
 
 # ================== Initialize session state ================== #
@@ -103,63 +80,75 @@ def ai_generate_content(query, section):
 # ================== AI CRUD and Query Operations ================== #
 
 def ai_crud_or_generate(query, data):
-    """Process CRUD operations and content generation based on the query."""
+    """Process CRUD operations, content generation, or data queries based on the query."""
     query_lower = query.lower()
 
-    # Handle CRUD Operations
-    if "add" in query_lower or "create" in query_lower:
+    # Expanded vocabulary for CRUD operations and queries
+    create_synonyms = ["add", "create", "insert", "generate", "introduce", "write", "produce", "synthesize", "draft"]
+    read_synonyms = ["list", "show", "display", "retrieve", "fetch", "view", "find", "get", "bring up"]
+    update_synonyms = ["update", "modify", "change", "adjust", "revise", "refresh"]
+    delete_synonyms = ["delete", "remove", "discard", "eliminate", "erase", "clear"]
+    query_synonyms = ["what", "how many", "how much", "count", "give me", "tell me", "list out", "find"]
+
+    # Handle Create Operations
+    if any(word in query_lower for word in create_synonyms):
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             idea = query.split("for ")[-1]
             data['content_ideas'][client].append({"idea": idea, "category": "AI-generated"})
-            action_details = f"Added new content idea for {client}: {idea}"
-            save_data(data, action_details)
+            save_data(data, f"Added new content idea for {client}: {idea}")
             return f"Successfully added a new content idea for {client}: {idea}"
 
-    elif "read" in query_lower or "retrieve" in query_lower:
+    # Handle Read Operations
+    elif any(word in query_lower for word in read_synonyms):
         if "content ideas" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             content_ideas = data['content_ideas'][client]
             return f"Here are the content ideas for {client}: {content_ideas}"
+        if "objectives" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            objectives = data['strategic_objectives'][client]
+            return f"Here are the strategic objectives for {client}: {objectives}"
 
-    elif "update" in query_lower:
+    # Handle Update Operations
+    elif any(word in query_lower for word in update_synonyms):
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             new_views = int(query.split("to ")[-1])
             data['analytics'][client]['views'] = new_views
-            action_details = f"Updated views for {client} to {new_views}"
-            save_data(data, action_details)
+            save_data(data, f"Updated views for {client} to {new_views}")
             return f"Successfully updated views for {client} to {new_views}"
 
-    elif "delete" in query_lower:
+    # Handle Delete Operations
+    elif any(word in query_lower for word in delete_synonyms):
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             if data['content_ideas'][client]:
                 deleted_idea = data['content_ideas'][client].pop(0)
-                action_details = f"Deleted content idea for {client}: {deleted_idea['idea']}"
-                save_data(data, action_details)
+                save_data(data, f"Deleted content idea for {client}: {deleted_idea['idea']}")
                 return f"Successfully deleted the first content idea for {client}: {deleted_idea['idea']}"
             else:
                 return f"No content ideas to delete for {client}."
 
-    # Handle Content Generation
-    elif "generate" in query_lower:
-        if "content idea" in query_lower:
-            generated_idea = ai_generate_content(query, "content idea")
-            return f"Generated content idea: {generated_idea}"
-        elif "caption" in query_lower:
-            generated_caption = ai_generate_content(query, "caption")
-            return f"Generated caption: {generated_caption}"
+    # Handle Content Generation and Data Queries
+    else:
+        if "generate" in query_lower or "produce" in query_lower or "create" in query_lower:
+            if "content idea" in query_lower:
+                generated_idea = ai_generate_content(query, "content idea")
+                return f"Generated content idea: {generated_idea}"
+            elif "caption" in query_lower:
+                generated_caption = ai_generate_content(query, "caption")
+                return f"Generated caption: {generated_caption}"
 
-    # Answer Questions About Data
-    elif "what" in query_lower or "list" in query_lower or "how many" in query_lower:
-        if "views" in query_lower:
-            client = "Biga" if "biga" in query_lower else "Tricolor"
-            return f"{client} has {data['analytics'][client]['views']} views."
-        elif "content ideas" in query_lower:
-            client = "Biga" if "biga" in query_lower else "Tricolor"
-            content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
-            return f"Content ideas for {client}: {', '.join(content_ideas)}"
+        # Handle Data Queries
+        elif any(word in query_lower for word in query_synonyms):
+            if "views" in query_lower:
+                client = "Biga" if "biga" in query_lower else "Tricolor"
+                return f"{client} has {data['analytics'][client]['views']} views."
+            elif "content ideas" in query_lower:
+                client = "Biga" if "biga" in query_lower else "Tricolor"
+                content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
+                return f"Content ideas for {client}: {', '.join(content_ideas)}"
 
     return "I couldn't understand your request. Please specify whether you'd like to add, read, update, delete, generate, or ask about the data."
 
@@ -168,10 +157,8 @@ def ai_crud_or_generate(query, data):
 def query_openai_about_data(query, data):
     """Ask OpenAI a question about the loaded data and perform CRUD or generate content."""
     try:
-        # Use OpenAI to process CRUD, content generation, or respond to questions
         response = ai_crud_or_generate(query, data)
         return response
-
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
     except openai.error.OpenAIError as e:
