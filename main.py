@@ -3,9 +3,8 @@ import openai
 import json
 import os
 import threading
-import matplotlib.pyplot as plt
 from datetime import datetime
-
+import matplotlib.pyplot as plt
 
 # Access the OpenAI API key from Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -77,73 +76,70 @@ def save_data(data, action_details="Data updated"):
     # Log the save action
     log_save_action(action_details)
 
-# Function to display the save log
-def display_save_log():
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, 'r') as log_file:
-            log_data = log_file.read()
-            st.text_area("Save Log", log_data, height=200)
-    else:
-        st.write("No save log available yet.")
+# ================== AI CRUD Operations ================== #
 
-# Initialize session state
-if 'data' not in st.session_state:
-    st.session_state['data'] = load_data()
+def ai_crud(query, data):
+    """Process CRUD operations based on the query."""
+    query_lower = query.lower()
+
+    # Define the operations
+    if "add" in query_lower or "create" in query_lower:
+        # Example: "Add a new content idea for Biga"
+        if "content idea" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            idea = query.split("for ")[-1]
+            data['content_ideas'][client].append({"idea": idea, "category": "AI-generated"})
+            action_details = f"Added new content idea for {client}: {idea}"
+            save_data(data, action_details)
+            return f"Successfully added a new content idea for {client}: {idea}"
+
+    elif "read" in query_lower or "retrieve" in query_lower:
+        # Example: "Read the content ideas for Biga"
+        if "content ideas" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            content_ideas = data['content_ideas'][client]
+            return f"Here are the content ideas for {client}: {content_ideas}"
+
+    elif "update" in query_lower:
+        # Example: "Update the views for Biga to 2000"
+        if "views" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            new_views = int(query.split("to ")[-1])
+            data['analytics'][client]['views'] = new_views
+            action_details = f"Updated views for {client} to {new_views}"
+            save_data(data, action_details)
+            return f"Successfully updated views for {client} to {new_views}"
+
+    elif "delete" in query_lower:
+        # Example: "Delete the first content idea for Biga"
+        if "content idea" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            if data['content_ideas'][client]:
+                deleted_idea = data['content_ideas'][client].pop(0)
+                action_details = f"Deleted content idea for {client}: {deleted_idea['idea']}"
+                save_data(data, action_details)
+                return f"Successfully deleted the first content idea for {client}: {deleted_idea['idea']}"
+            else:
+                return f"No content ideas to delete for {client}."
+
+    return "I couldn't understand your request. Please specify whether you'd like to add, read, update, or delete."
 
 # ================== OpenAI Query Function ================== #
 
 def query_openai_about_data(query, data):
-    """Ask OpenAI a question about the loaded data."""
-    # Convert the data to a string format for GPT to process
-    data_str = json.dumps(data, indent=2)
-    
-    # Define the prompt including the data
-    prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
-
+    """Ask OpenAI a question about the loaded data and perform CRUD."""
     try:
-        # Use the OpenAI ChatCompletion API
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=150,
-            temperature=0.5
-        )
-        
-        # Extract the response content
-        message_content = response['choices'][0]['message']['content'].strip()
-        return message_content
+        # Use OpenAI to process CRUD operations and respond
+        response = ai_crud(query, data)
+        return response
 
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
     except openai.error.OpenAIError as e:
         return f"Error querying OpenAI: {str(e)}"
 
-
-# ================== App Layout ================== #
-
-st.title("📈 SMMA Planning and Tracking App")
-
-# Sidebar for Navigation
-st.sidebar.title("Navigation")
-options = [
-    "Strategic Objectives",
-    "Content Ideas",
-    "Weekly Goals",
-    "Captions",
-    "Notes",
-    "Analytics",
-    "Pricing & Billing",
-    "Ask AI",
-    "Save Log"
-]
-selection = st.sidebar.radio("Go to", options)
-
 # ================== Section Functions ================== #
 
-# Function for Strategic Objectives Section
 def strategic_objectives():
     st.header("🎯 Strategic Objectives")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="strat_client")
@@ -156,27 +152,13 @@ def strategic_objectives():
         else:
             st.warning("Please enter an objective.")
     
-    search_term = st.text_input("Search Objectives", key="search_objectives")
     st.subheader(f"{client} Objectives")
-    filtered_objectives = [obj for obj in st.session_state['data']['strategic_objectives'][client] if search_term.lower() in obj.lower()]
-    for idx, obj in enumerate(filtered_objectives, 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {obj}")
-        if col2.button(f"Delete {idx}", key=f"delete_strat_{idx}"):
-            st.session_state['data']['strategic_objectives'][client].pop(idx-1)
-            save_data(st.session_state['data'], f"Deleted objective for {client}")
-
-    if st.button(f"Delete All Objectives for {client}", key="delete_all_strat"):
-        st.session_state['data']['strategic_objectives'][client] = []
-        save_data(st.session_state['data'], f"Deleted all objectives for {client}")
-        st.success("All objectives deleted!")
-
-# Function for Content Ideas Section
+    for idx, obj in enumerate(st.session_state['data']['strategic_objectives'][client], 1):
+        st.write(f"{idx}. {obj}")
+    
 def content_ideas():
     st.header("📝 Content Ideas")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="content_client")
-    
-    search_term = st.text_input("Search Content Ideas", key="search_content")
     idea = st.text_input(f"Add Content Idea for {client}", key="content_input")
     category = st.selectbox("Select Category", ["Trendy Posts", "Carousels", "Reels", "Polls"], key="content_category")
     if st.button("Add Content Idea", key="content_add_btn"):
@@ -188,25 +170,12 @@ def content_ideas():
             st.warning("Please enter a content idea.")
     
     st.subheader(f"{client} Content Ideas")
-    filtered_ideas = [item for item in st.session_state['data']['content_ideas'][client] if search_term.lower() in item['idea'].lower()]
-    for idx, item in enumerate(filtered_ideas, 1):
-        col1, col2 = st.columns([4, 1])
-        new_idea = col1.text_input(f"Edit Idea {idx}", value=item['idea'], key=f"edit_idea_{idx}")
-        if col2.button(f"Save Edit {idx}", key=f"save_edit_{idx}"):
-            st.session_state['data']['content_ideas'][client][idx-1]['idea'] = new_idea
-            save_data(st.session_state['data'], f"Edited content idea for {client}")
-            st.success(f"Idea {idx} updated!")
-
-    if st.button(f"Delete All Content Ideas for {client}", key="delete_all_content"):
-        st.session_state['data']['content_ideas'][client] = []
-        save_data(st.session_state['data'], f"Deleted all content ideas for {client}")
-        st.success("All content ideas deleted!")
-
-# Function for Weekly Goals Section
+    for idx, item in enumerate(st.session_state['data']['content_ideas'][client], 1):
+        st.write(f"{idx}. {item['idea']} - {item['category']}")
+    
 def weekly_goals():
     st.header("📅 Weekly Goals")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="goals_client")
-    
     goal = st.text_input(f"Add Weekly Goal for {client}", key="goals_input")
     if st.button("Add Weekly Goal", key="goals_add_btn"):
         if goal:
@@ -215,20 +184,14 @@ def weekly_goals():
             st.success("Weekly goal added!")
         else:
             st.warning("Please enter a weekly goal.")
-
+    
     st.subheader(f"{client} Weekly Goals")
     for idx, goal in enumerate(st.session_state['data']['weekly_goals'][client], 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {goal}")
-        if col2.button(f"Delete {idx}", key=f"delete_goal_{idx}"):
-            st.session_state['data']['weekly_goals'][client].pop(idx-1)
-            save_data(st.session_state['data'], f"Deleted weekly goal for {client}")
-
-# Function for Captions Section
+        st.write(f"{idx}. {goal}")
+    
 def captions():
     st.header("📝 Captions")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="captions_client")
-    
     caption = st.text_input(f"Add Caption for {client}", key="caption_input")
     if st.button("Add Caption", key="caption_add_btn"):
         if caption:
@@ -237,20 +200,14 @@ def captions():
             st.success("Caption added!")
         else:
             st.warning("Please enter a caption.")
-
+    
     st.subheader(f"{client} Captions")
     for idx, caption in enumerate(st.session_state['data']['captions'][client], 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {caption}")
-        if col2.button(f"Delete {idx}", key=f"delete_caption_{idx}"):
-            st.session_state['data']['captions'][client].pop(idx-1)
-            save_data(st.session_state['data'], f"Deleted caption for {client}")
+        st.write(f"{idx}. {caption}")
 
-# Function for Notes Section
 def notes():
     st.header("📝 Notes")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="notes_client")
-    
     note = st.text_area(f"Add Note for {client}", key="note_input")
     if st.button("Add Note", key="note_add_btn"):
         if note:
@@ -259,16 +216,11 @@ def notes():
             st.success("Note added!")
         else:
             st.warning("Please enter a note.")
-
+    
     st.subheader(f"{client} Notes")
     for idx, note in enumerate(st.session_state['data']['notes'][client], 1):
-        col1, col2 = st.columns([4, 1])
-        col1.write(f"{idx}. {note}")
-        if col2.button(f"Delete {idx}", key=f"delete_note_{idx}"):
-            st.session_state['data']['notes'][client].pop(idx-1)
-            save_data(st.session_state['data'], f"Deleted note for {client}")
-
-# Function for Analytics Section
+        st.write(f"{idx}. {note}")
+    
 def analytics():
     st.header("📊 Analytics")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="analytics_client")
@@ -307,7 +259,6 @@ def analytics():
     # Display the chart
     st.pyplot(fig)
 
-# Function for Pricing & Billing Section
 def pricing_billing():
     st.header("💰 Pricing & Billing")
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="pricing_client")
@@ -330,12 +281,39 @@ def pricing_billing():
         save_data(st.session_state['data'], f"Updated pricing for {client}")
         st.success("Pricing & Billing updated!")
 
+def display_save_log():
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, 'r') as log_file:
+            log_data = log_file.read()
+            st.text_area("Save Log", log_data, height=200)
+    else:
+        st.write("No save log available yet.")
+
+# ================== App Layout ================== #
+
+st.title("📈 SMMA Planning and Tracking App")
+
+# Sidebar for Navigation
+st.sidebar.title("Navigation")
+options = [
+    "Strategic Objectives",
+    "Content Ideas",
+    "Weekly Goals",
+    "Captions",
+    "Notes",
+    "Analytics",
+    "Pricing & Billing",
+    "Ask AI",
+    "Save Log"
+]
+selection = st.sidebar.radio("Go to", options)
+
 # ================== AI Query Section ================== #
 
 if selection == "Ask AI":
     st.header("🤖 Ask AI About the Data")
-    query = st.text_input("Enter your question about the data:")
-    
+    query = st.text_input("Enter your question (e.g., 'Add content idea for Biga'):")
+
     if st.button("Submit Query"):
         if query:
             # Query OpenAI with the input and data from data.json
@@ -346,7 +324,6 @@ if selection == "Ask AI":
 
 # ================== Other Sections ================== #
 
-# Navigation between different sections
 if selection == "Strategic Objectives":
     strategic_objectives()
 elif selection == "Content Ideas":
