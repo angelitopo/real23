@@ -80,15 +80,31 @@ def save_data(data, action_details="Data updated"):
 if 'data' not in st.session_state:
     st.session_state['data'] = load_data()
 
-# ================== AI CRUD Operations ================== #
+# ================== AI Content Generation ================== #
 
-def ai_crud(query, data):
-    """Process CRUD operations based on the query."""
+def ai_generate_content(query, section):
+    """Use OpenAI to generate content for specific sections."""
+    prompt = f"You are an expert in social media marketing. Generate a new {section} based on the following query: {query}"
+    try:
+        response = openai.Completion.create(
+            engine="gpt-3.5-turbo",
+            prompt=prompt,
+            max_tokens=150,
+            temperature=0.7
+        )
+        generated_content = response.choices[0].text.strip()
+        return generated_content
+    except openai.error.OpenAIError as e:
+        return f"Error generating content: {str(e)}"
+
+# ================== AI CRUD and Query Operations ================== #
+
+def ai_crud_or_generate(query, data):
+    """Process CRUD operations and content generation based on the query."""
     query_lower = query.lower()
 
-    # Define the operations
+    # Handle CRUD Operations
     if "add" in query_lower or "create" in query_lower:
-        # Example: "Add a new content idea for Biga"
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             idea = query.split("for ")[-1]
@@ -98,14 +114,12 @@ def ai_crud(query, data):
             return f"Successfully added a new content idea for {client}: {idea}"
 
     elif "read" in query_lower or "retrieve" in query_lower:
-        # Example: "Read the content ideas for Biga"
         if "content ideas" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             content_ideas = data['content_ideas'][client]
             return f"Here are the content ideas for {client}: {content_ideas}"
 
     elif "update" in query_lower:
-        # Example: "Update the views for Biga to 2000"
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             new_views = int(query.split("to ")[-1])
@@ -115,7 +129,6 @@ def ai_crud(query, data):
             return f"Successfully updated views for {client} to {new_views}"
 
     elif "delete" in query_lower:
-        # Example: "Delete the first content idea for Biga"
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             if data['content_ideas'][client]:
@@ -126,15 +139,34 @@ def ai_crud(query, data):
             else:
                 return f"No content ideas to delete for {client}."
 
-    return "I couldn't understand your request. Please specify whether you'd like to add, read, update, or delete."
+    # Handle Content Generation
+    elif "generate" in query_lower:
+        if "content idea" in query_lower:
+            generated_idea = ai_generate_content(query, "content idea")
+            return f"Generated content idea: {generated_idea}"
+        elif "caption" in query_lower:
+            generated_caption = ai_generate_content(query, "caption")
+            return f"Generated caption: {generated_caption}"
+
+    # Answer Questions About Data
+    elif "what" in query_lower or "list" in query_lower or "how many" in query_lower:
+        if "views" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            return f"{client} has {data['analytics'][client]['views']} views."
+        elif "content ideas" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
+            return f"Content ideas for {client}: {', '.join(content_ideas)}"
+
+    return "I couldn't understand your request. Please specify whether you'd like to add, read, update, delete, generate, or ask about the data."
 
 # ================== OpenAI Query Function ================== #
 
 def query_openai_about_data(query, data):
-    """Ask OpenAI a question about the loaded data and perform CRUD."""
+    """Ask OpenAI a question about the loaded data and perform CRUD or generate content."""
     try:
-        # Use OpenAI to process CRUD operations and respond
-        response = ai_crud(query, data)
+        # Use OpenAI to process CRUD, content generation, or respond to questions
+        response = ai_crud_or_generate(query, data)
         return response
 
     except openai.error.RateLimitError:
@@ -316,7 +348,7 @@ selection = st.sidebar.radio("Go to", options)
 
 if selection == "Ask AI":
     st.header("🤖 Ask AI About the Data")
-    query = st.text_input("Enter your question (e.g., 'Add content idea for Biga'):")
+    query = st.text_input("Enter your question or request (e.g., 'Generate a new content idea for Biga'):")
 
     if st.button("Submit Query"):
         if query:
