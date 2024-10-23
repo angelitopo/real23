@@ -76,6 +76,10 @@ def save_data(data, action_details="Data updated"):
     # Log the save action
     log_save_action(action_details)
 
+# ================== Initialize session state ================== #
+if 'data' not in st.session_state:
+    st.session_state['data'] = load_data()
+
 # ================== AI CRUD Operations ================== #
 
 def ai_crud(query, data):
