@@ -3,7 +3,9 @@ import openai
 import json
 import os
 import threading
+import matplotlib.pyplot as plt
 from datetime import datetime
+
 
 # Access the OpenAI API key from Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -272,10 +274,12 @@ def analytics():
     client = st.selectbox("Select Client", ["Biga", "Tricolor"], key="analytics_client")
     analytics_data = st.session_state['data']['analytics'][client]
 
+    # Display current analytics data
     st.write(f"Views: {analytics_data['views']}")
     st.write(f"Engagement: {analytics_data['engagement']}")
     st.write(f"Likes: {analytics_data['likes']}")
 
+    # Input for updating analytics
     views = st.number_input("Update Views", value=analytics_data['views'], step=1)
     engagement = st.number_input("Update Engagement", value=analytics_data['engagement'], step=1)
     likes = st.number_input("Update Likes", value=analytics_data['likes'], step=1)
@@ -284,6 +288,24 @@ def analytics():
         st.session_state['data']['analytics'][client] = {"views": views, "engagement": engagement, "likes": likes}
         save_data(st.session_state['data'], f"Updated analytics for {client}")
         st.success("Analytics updated!")
+
+    # ================== Analytics Graphs ================== #
+
+    # Data for the bar chart
+    metrics = ['Views', 'Engagement', 'Likes']
+    values = [analytics_data['views'], analytics_data['engagement'], analytics_data['likes']]
+
+    # Create the bar chart using matplotlib
+    fig, ax = plt.subplots()
+    ax.bar(metrics, values, color=['blue', 'green', 'orange'])
+
+    # Labeling the chart
+    ax.set_title(f"Analytics Overview for {client}")
+    ax.set_ylabel("Count")
+    ax.set_xlabel("Metrics")
+
+    # Display the chart
+    st.pyplot(fig)
 
 # Function for Pricing & Billing Section
 def pricing_billing():
