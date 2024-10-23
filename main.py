@@ -1,16 +1,14 @@
 import streamlit as st
 import openai
 import json
-import os
 import threading
 from datetime import datetime
-from openai import OpenAI
 
-# Load the OpenAI API key from Streamlit secrets or environment variable
+# Access the OpenAI API key securely from Streamlit secrets
 openai_api_key = st.secrets["OPENAI_API_KEY"]
 
-# Initialize the OpenAI client
-client = OpenAI(api_key=openai_api_key)
+# Set the OpenAI API key
+openai.api_key = openai_api_key
 
 # ================== Data Handling ================== #
 
@@ -130,26 +128,25 @@ def query_openai_about_data(query, data):
     prompt = f"You are given the following data: {data_str}\n\nAnswer the following question: {query}"
 
     try:
-        # Use the updated client to query the AI
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+        # Use the OpenAI ChatCompletion API
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.5
         )
         
         # Extract the response content
-        message_content = chat_completion.choices[0].message["content"].strip()
+        message_content = response['choices'][0]['message']['content'].strip()
         return message_content
 
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
     except openai.error.OpenAIError as e:
         return f"Error querying OpenAI: {str(e)}"
-
 
 # ================== App Layout ================== #
 
