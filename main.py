@@ -77,7 +77,26 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== AI General Assistant Operations ================== #
+# ================== General AI Assistant Operations ================== #
+
+def ai_general_assistant(query):
+    """Allow ChatGPT to handle a variety of general tasks, including code assistance or providing insights."""
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": query}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        result = response['choices'][0]['message']['content'].strip()
+        return result
+    except openai.error.OpenAIError as e:
+        return f"Error processing the request: {str(e)}"
+
+# ================== AI General Assistant for Data Queries ================== #
 
 def ai_assistant(query, data):
     """Process content generation or data queries based on the query."""
@@ -117,8 +136,10 @@ def ai_assistant(query, data):
 def query_openai_about_data(query, data):
     """Ask OpenAI a question about the loaded data and perform content generation or data queries."""
     try:
-        response = ai_assistant(query, data)
-        return response
+        if "code" in query.lower() or "explain" in query.lower() or "how to" in query.lower():
+            return ai_general_assistant(query)
+        else:
+            return ai_assistant(query, data)
     except openai.error.RateLimitError:
         return "Error: You have exceeded your API quota. Please check your OpenAI account for details."
     except openai.error.OpenAIError as e:
@@ -229,20 +250,16 @@ def analytics():
 
     # ================== Analytics Graphs ================== #
 
-    # Data for the bar chart
     metrics = ['Views', 'Engagement', 'Likes']
     values = [analytics_data['views'], analytics_data['engagement'], analytics_data['likes']]
 
-    # Create the bar chart using matplotlib
     fig, ax = plt.subplots()
     ax.bar(metrics, values, color=['blue', 'green', 'orange'])
 
-    # Labeling the chart
     ax.set_title(f"Analytics Overview for {client}")
     ax.set_ylabel("Count")
     ax.set_xlabel("Metrics")
 
-    # Display the chart
     st.pyplot(fig)
 
 def pricing_billing():
@@ -253,15 +270,11 @@ def pricing_billing():
     # Ensure that the amount is a numeric type
     amount = pricing_data['amount']
     if not isinstance(amount, (int, float)):
-        amount = 0.0  # Default to 0.0 if the amount is not a number
+        amount = 0.0
 
-    # Use st.number_input to allow input for the amount due
     amount = st.number_input("Amount Due", value=float(amount), step=1.0)
-
-    # Input for due date
     due_date = st.text_input("Due Date", value=pricing_data['due_date'])
 
-    # Update data when the button is clicked
     if st.button("Update Pricing"):
         st.session_state['data']['pricing'][client] = {"amount": amount, "due_date": due_date}
         save_data(st.session_state['data'], f"Updated pricing for {client}")
@@ -302,7 +315,6 @@ if selection == "Ask AI":
 
     if st.button("Submit Query"):
         if query:
-            # Query OpenAI with the input and data from data.json
             response = query_openai_about_data(query, st.session_state['data'])
             st.write(response)
         else:
