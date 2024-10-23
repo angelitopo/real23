@@ -1,4 +1,4 @@
-import streamlit as st 
+import streamlit as st
 import openai
 import json
 import os
@@ -80,19 +80,22 @@ def save_data(data, action_details="Data updated"):
 if 'data' not in st.session_state:
     st.session_state['data'] = load_data()
 
-# ================== AI Content Generation ================== #
+# ================== AI Content Generation (using chat/completions) ================== #
 
 def ai_generate_content(query, section):
-    """Use OpenAI to generate content for specific sections."""
+    """Use OpenAI to generate content for specific sections using chat completions."""
     prompt = f"You are an expert in social media marketing. Generate a new {section} based on the following query: {query}"
     try:
-        response = openai.Completion.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            prompt=prompt,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=150,
             temperature=0.7
         )
-        generated_content = response.choices[0].text.strip()
+        generated_content = response['choices'][0]['message']['content'].strip()
         return generated_content
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
