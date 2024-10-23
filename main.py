@@ -100,14 +100,21 @@ def ai_generate_content(query, section):
     except openai.error.OpenAIError as e:
         return f"Error generating content: {str(e)}"
 
-# ================== AI CRUD and Query Operations ================== #
+# ================== Enhanced AI CRUD and Query Operations ================== #
 
 def ai_crud_or_generate(query, data):
-    """Process CRUD operations and content generation based on the query."""
+    """Process CRUD operations, content generation, and data queries based on the query with enhanced vocabulary."""
     query_lower = query.lower()
 
-    # Handle CRUD Operations
-    if "add" in query_lower or "create" in query_lower:
+    # Vocabulary enhancements for CRUD operations and queries
+    create_synonyms = ["add", "create", "insert", "generate", "introduce", "new"]
+    read_synonyms = ["list", "show", "display", "retrieve", "fetch", "view"]
+    update_synonyms = ["update", "modify", "change", "adjust"]
+    delete_synonyms = ["delete", "remove", "discard", "eliminate"]
+    query_synonyms = ["what", "how many", "how much", "count"]
+
+    # Handle Create Operations
+    if any(word in query_lower for word in create_synonyms):
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             idea = query.split("for ")[-1]
@@ -116,13 +123,19 @@ def ai_crud_or_generate(query, data):
             save_data(data, action_details)
             return f"Successfully added a new content idea for {client}: {idea}"
 
-    elif "read" in query_lower or "retrieve" in query_lower:
+    # Handle Read Operations
+    elif any(word in query_lower for word in read_synonyms):
         if "content ideas" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             content_ideas = data['content_ideas'][client]
             return f"Here are the content ideas for {client}: {content_ideas}"
+        if "objectives" in query_lower:
+            client = "Biga" if "biga" in query_lower else "Tricolor"
+            objectives = data['strategic_objectives'][client]
+            return f"Here are the strategic objectives for {client}: {objectives}"
 
-    elif "update" in query_lower:
+    # Handle Update Operations
+    elif any(word in query_lower for word in update_synonyms):
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             new_views = int(query.split("to ")[-1])
@@ -131,7 +144,8 @@ def ai_crud_or_generate(query, data):
             save_data(data, action_details)
             return f"Successfully updated views for {client} to {new_views}"
 
-    elif "delete" in query_lower:
+    # Handle Delete Operations
+    elif any(word in query_lower for word in delete_synonyms):
         if "content idea" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             if data['content_ideas'][client]:
@@ -151,8 +165,8 @@ def ai_crud_or_generate(query, data):
             generated_caption = ai_generate_content(query, "caption")
             return f"Generated caption: {generated_caption}"
 
-    # Answer Questions About Data
-    elif "what" in query_lower or "list" in query_lower or "how many" in query_lower:
+    # Handle Data Queries
+    elif any(word in query_lower for word in query_synonyms):
         if "views" in query_lower:
             client = "Biga" if "biga" in query_lower else "Tricolor"
             return f"{client} has {data['analytics'][client]['views']} views."
@@ -161,7 +175,7 @@ def ai_crud_or_generate(query, data):
             content_ideas = [idea['idea'] for idea in data['content_ideas'][client]]
             return f"Content ideas for {client}: {', '.join(content_ideas)}"
 
-    return "I couldn't understand your request. Please specify whether you'd like to add, read, update, delete, generate, or ask about the data."
+    return "I couldn't understand your request. Please specify whether you'd like to add, list, update, delete, or query the data."
 
 # ================== OpenAI Query Function ================== #
 
